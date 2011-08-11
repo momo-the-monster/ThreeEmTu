@@ -1,0 +1,7 @@
+<tuio>
+	<host>127.0.0.1</host>
+	<port>9999</port>
+</tuio>
+<serial>
+    <device>/dev/tty.PL2303-000013FD</device>
+</serial>
