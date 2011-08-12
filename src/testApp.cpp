@@ -12,9 +12,9 @@ void testApp::setup(){
 	
 	// App Settings, from file
 	if( XML.loadFile("settings.xml") ){
-		message = "* Settings Loaded\n";
+		message = "* Settings Loaded\n\n";
 	} else {
-		message = "* Unable to load settings.xml, using defaults\n";
+		message = "* Unable to load settings.xml, using defaults\n\n";
 	}
 	
 	//read the settings from XML
@@ -23,7 +23,7 @@ void testApp::setup(){
 	device = XML.getValue("serial:device", "/dev/tty.PL2303-000013FD");
 	
 	// load the font for output messages
-	TTF.loadFont("DIN.otf", 8);
+	TTF.loadFont("DIN.otf", 9);
 	
 	// load the background picture
 	bg.loadImage("bg.png");
@@ -35,17 +35,29 @@ void testApp::setup(){
 	// Initialize Serial Connection
 	serialRunning = serial.setup(device, 115200); //open the monitor's serial connection
 	if(serialRunning) {
-		message.append("* Connected To Monitor\n");
+		message.append("* Connected To Monitor\n\n");
+	} else {
+		message.append("* Could not connect to Monitor.\n  Available devices:\n\n");
+		printDevices(deviceList);
+		message.append("\n\n");
+		message.append("* Find your device in the list above\n   and enter it into settings.xml\n\n");
 	}
 	
 	// elaborate string manipulation to print TUIO info
 	stringstream buffer;
-	buffer << "* Sending TUIO to " << host <<  "\n  on port " << port << "\n";
+	buffer << "* Sending TUIO to " << host <<  "\n  on port " << port << "\n\n";
 	string tuioMessage = buffer.str();
 	message.append(tuioMessage);
 	serial.flush(true, true);
 	
 	startTuio();
+}
+
+void testApp::printDevices(vector <ofSerialDeviceInfo> deviceList){
+	for(vector<ofSerialDeviceInfo>::iterator it = deviceList.begin(); it != deviceList.end(); ++it) {
+		message.append(it->getDevicePath());
+		message.append("\n");
+	}
 }
 
 

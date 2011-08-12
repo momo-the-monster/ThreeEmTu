@@ -28,6 +28,8 @@ public:
 	void update();
 	void draw();
 	void readPacket();
+	
+	void printDevices(vector <ofSerialDeviceInfo> deviceList);
 
 	void startTuio();
 	void stopTuio();
