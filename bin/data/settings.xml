@@ -3,5 +3,5 @@
 	<port> 3333 </port>
 </tuio>
 <serial>
-	<device> /dev/tty.PL2303-000013FD </device>
+	<device> /dev/tty.PL2303-004214FA </device>
 </serial>

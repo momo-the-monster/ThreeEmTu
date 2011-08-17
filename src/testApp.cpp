@@ -7,10 +7,10 @@ void testApp::setup(){
 	ofSetVerticalSync(true);
 	ofSetFrameRate(60.0f);
 	ofBackground(0,0,0);	
-	ofSetLogLevel(OF_LOG_NOTICE);
-	serial.setVerbose(false);
 	
-	// App Settings, from file
+	// App Settings
+	mode = MODE_ABSOLUTE;
+	
 	if( XML.loadFile("settings.xml") ){
 		message = "* Settings Loaded\n\n";
 	} else {
@@ -28,29 +28,23 @@ void testApp::setup(){
 	// load the background picture
 	bg.loadImage("bg.png");
 	
-	// Enumerate Serial Devices
-	serial.listDevices();
-	vector <ofSerialDeviceInfo> deviceList = serial.getDeviceList();
-	
-	// Initialize Serial Connection
-	serialRunning = serial.setup(device, 115200); //open the monitor's serial connection
-	if(serialRunning) {
+	// Init Serial-to-TUIO communication
+	if(touchMon.setup(device, host, port, true)) {
+		// serial & TUIO started successfully
 		message.append("* Connected To Monitor\n\n");
+		
+		// elaborate string manipulation to print TUIO info
+		stringstream buffer;
+		buffer << "* Sending TUIO to " << host <<  "\n  on port " << port << "\n\n";
+		string tuioMessage = buffer.str();
+		message.append(tuioMessage);
+		
 	} else {
 		message.append("* Could not connect to Monitor.\n  Available devices:\n\n");
-		printDevices(deviceList);
+		printDevices(touchMon.serial.getDeviceList());
 		message.append("\n\n");
 		message.append("* Find your device in the list above\n   and enter it into settings.xml\n\n");
 	}
-	
-	// elaborate string manipulation to print TUIO info
-	stringstream buffer;
-	buffer << "* Sending TUIO to " << host <<  "\n  on port " << port << "\n\n";
-	string tuioMessage = buffer.str();
-	message.append(tuioMessage);
-	serial.flush(true, true);
-	
-	startTuio();
 }
 
 void testApp::printDevices(vector <ofSerialDeviceInfo> deviceList){
@@ -60,90 +54,11 @@ void testApp::printDevices(vector <ofSerialDeviceInfo> deviceList){
 	}
 }
 
-
-void testApp::startTuio() {
-	tuio.setup(host, port, 0, host);
-}
- 
-
-void testApp::stopTuio(){
-}
-
 //--------------------------------------------------------------
 void testApp::update(){
-	if(serial.available() > 0) {
-		while(serial.available() > 0) {
-			readPacket();
-		}
-	}
-	
-	tuio.update();
+	//ofx3M2 is set to auto-update, so nothing is needed here
 }
 
-void testApp::readPacket(){
-	int bytesToRead = 6;
-	int bytesRemaining = bytesToRead;
-	
-	if	(serial.available() > 0) {
-		while (bytesRemaining > 0) {
-			
-			int bytesArrayOffset = bytesToRead - bytesRemaining;
-			int result = serial.readBytes( &bytes[bytesArrayOffset],bytesRemaining );
-			
-			// check for error code
-			if ( result == OF_SERIAL_ERROR ) {
-				// something bad happened
-				ofLog( OF_LOG_ERROR, "unrecoverable error reading from serial" );
-				break;
-			} else if ( result == OF_SERIAL_NO_DATA ) {
-				// nothing was read, try again
-			} else {
-				// we read some data!
-				bytesRemaining -= result;
-			}
-			
-		}
-	}
-	
-	int id = int(bytes[5]);
-	
-	if(id < MAX_POINTS) {
-		int status = int(bytes[0]);
-		
-		// thanks to Joshua J Noble for the bitshifting help!
-		float xPos = (int(bytes[2]) << 7 | int(bytes[1])) / 16383.0f; // byte1 (0 based) is the x low, byte2 is the x high
-		float yPos = 1 - (int(bytes[4]) << 7 | int(bytes[3])) / 16383.0f; // byte3 is the y low, byte4Ê is the y high
-		
-		if(status == 128) {
-			// point released
-			points[id].active = false;
-			tuio.cursorReleased(points[id].x, points[id].y, id);
-			
-		} else {
-			// check to see if we're switching active states (ie just pressed)
-			bool pressed = points[id].active == false;
-			// switch point to active
-			points[id].active = true;
-			// update the point only if it's changed
-			if(xPos != points[id].prevX) {
-				points[id].prevX = points[id].x;
-				points[id].x = xPos;
-			}
-			// update the point only if it's changed
-			if(yPos != points[id].prevY) {
-				points[id].prevY = points[id].y;
-				points[id].y = yPos;
-			}
-			// send TUIO messages
-			if(pressed) {
-				tuio.cursorPressed(points[id].x, points[id].y, id);
-			} else {
-				tuio.cursorDragged(points[id].x, points[id].y, id);
-			}
-			
-		}
-	}
-}
 
 //--------------------------------------------------------------
 void testApp::draw(){
@@ -157,8 +72,8 @@ void testApp::draw(){
 	// Draw circles to show touch points
 	ofSetColor(100, 255, 255);
 	for (int i = 0; i < MAX_POINTS; ++i) {
-		if(points[i].active) {
-			ofCircle(points[i].x * ofGetWidth(), points[i].y * ofGetHeight(), 5);
+		if(touchMon.points[i].active) {
+			ofCircle(touchMon.points[i].x * ofGetWidth(), touchMon.points[i].y * ofGetHeight(), 5);
 		}
 	}
 	
